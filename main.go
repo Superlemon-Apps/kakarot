@@ -46,7 +46,10 @@ func getScriptTag(storeId string, authToken string, httpClient *http.Client) *Sc
   url := fmt.Sprintf("https://%s/admin/api/2019-10/script_tags.json", storeId)
   req, _ := http.NewRequest("GET", url, nil)
   req.Header.Set("x-shopify-access-token", authToken)
-  res, _ := httpClient.Do(req)
+  res, err := httpClient.Do(req)
+  if err != nil {
+    panic(err)
+  }
   defer res.Body.Close()
   if res.StatusCode  == 200 {
     var scriptTags ScriptTagAPIResponse
@@ -84,7 +87,7 @@ func main() {
       DB:       2,                // use default DB
   })
 
-  w := wrq.New()
+  w := wrq.NewWithSettings("shopify", 100, 10)
   defer w.Stop()
 
   httpClient := &http.Client{}
