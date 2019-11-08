@@ -35,7 +35,7 @@ func getAllStores(rdb *redis.Client) map[string]string {
   }
   for _, key := range(keys) {
     val := rdb.HMGet(key, "id", "auth_token").Val()
-    if len(val) == 2 {
+    if len(val) == 2 && val[0] != nil && val[1] != nil{
         stores[val[0].(string)] = val[1].(string)
     }
   }
