@@ -43,7 +43,7 @@ func getAllStores(rdb *redis.Client) map[string]string {
 }
 
 func getScriptTag(storeId string, authToken string, httpClient *http.Client) *ScriptTag {
-  url := fmt.Sprintf("https://%s/admin/api/2019-10/script_tags.json", storeId)
+  url := fmt.Sprintf("https://%s/admin/api/2019-04/script_tags.json", storeId)
   req, _ := http.NewRequest("GET", url, nil)
   req.Header.Set("x-shopify-access-token", authToken)
   res, err := httpClient.Do(req)
@@ -60,7 +60,7 @@ func getScriptTag(storeId string, authToken string, httpClient *http.Client) *Sc
   }
 }
 
-func updateScriptTag(storeId string, authToken string, httpClient *http.Client, scriptTag *ScriptTag, newSrc string) {
+func updateScriptTag(storeId string, authToken string, httpClient *http.Client, scriptTag *ScriptTag, newSrc string, retry int) {
   newScriptTag := ScriptTag{Id: scriptTag.Id, Src:newSrc}
   url := fmt.Sprintf("https://%s/admin/api/2019-10/script_tags/%d.json", storeId, scriptTag.Id)
   requestBody, _ := json.Marshal(map[string]interface{}{"script_tag": newScriptTag})
@@ -70,8 +70,11 @@ func updateScriptTag(storeId string, authToken string, httpClient *http.Client, 
   res, _ := httpClient.Do(req)
   defer res.Body.Close()
 
-  if res.StatusCode != 200 {
-    panic(errors.New("found a non 200 status code on updating scripttag"))
+  if res.StatusCode != 200 && retry > 0{
+    fmt.Println("gonna try this again")
+    updateScriptTag(storeId, authToken, httpClient, scriptTag, newSrc, retry -1)
+  } else if res.StatusCode != 200 {
+    panic(errors.New("found a non 200 status code on updating scripttag " +  storeId + string(res.StatusCode)))
   }
 }
 
@@ -87,15 +90,17 @@ func main() {
       DB:       2,                // use default DB
   })
 
-  w := wrq.NewWithSettings("shopify", 100, 10)
+  w := wrq.NewWithSettings("shopify", 15000, 500)
   defer w.Stop()
 
   httpClient := &http.Client{}
 
   stores := getAllStores(rdb)
 
+  i := 0
   for storeId, authToken := range stores {
-    job := newUpdateScriptJob(httpClient, storeId, authToken, contains, new_src)
+    job := newUpdateScriptJob(httpClient, storeId, authToken, contains, new_src, i)
     w.AddJob(job)
+    i += 1
   }
 }
