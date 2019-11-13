@@ -30,6 +30,7 @@ func getAllStores(rdb *redis.Client) map[string]string {
   var stores = map[string]string{}
   cmd := rdb.Keys("shop:*:settings")
   keys, err := cmd.Result()
+  fmt.Println("got all shops ", len(keys))
   if err != nil {
     panic(err)
   }
@@ -39,6 +40,7 @@ func getAllStores(rdb *redis.Client) map[string]string {
         stores[val[0].(string)] = val[1].(string)
     }
   }
+  fmt.Println("got all stores with aut tokens ")
   return stores
 }
 
@@ -93,10 +95,15 @@ func main() {
   w := wrq.NewWithSettings("shopify", 15000, 500)
   defer w.Stop()
 
-  httpClient := &http.Client{}
+  tr := &http.Transport{
+  	MaxIdleConns:       1000,
+  }
+  fmt.Println("using max idel conns as 5000 and 15000 queue size with 1000 workers")
+  httpClient := &http.Client{Transport: tr}
 
   stores := getAllStores(rdb)
 
+  fmt.Println(" got all stores")
   i := 0
   for storeId, authToken := range stores {
     job := newUpdateScriptJob(httpClient, storeId, authToken, contains, new_src, i)
