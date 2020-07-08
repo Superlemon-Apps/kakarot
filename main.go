@@ -3,6 +3,8 @@ package main
 import (
   "flag"
   "fmt"
+  "net"
+  "time"
   "net/http"
   "encoding/json"
   "github.com/go-redis/redis"
@@ -92,13 +94,17 @@ func main() {
       DB:       2,                // use default DB
   })
 
-  w := wrq.NewWithSettings("shopify", 15000, 500)
+  w := wrq.NewWithSettings("shopify", 1500, 50)
   defer w.Stop()
 
   tr := &http.Transport{
   	MaxIdleConns:       1000,
+    Dial: (&net.Dialer{
+      Timeout: 5 * time.Second,
+    }).Dial,
+    TLSHandshakeTimeout: 5 * time.Second,
   }
-  fmt.Println("using max idel conns as 5000 and 15000 queue size with 1000 workers")
+  fmt.Println("using max idel conns as 50 and 1500 queue size with 1000 workers")
   httpClient := &http.Client{Transport: tr}
 
   stores := getAllStores(rdb)
